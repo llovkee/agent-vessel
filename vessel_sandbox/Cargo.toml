@@ -1,0 +1,8 @@
+[package]
+name = "vessel_sandbox"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bollard = "0.21"
+futures-util = "0.3"

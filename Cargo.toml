@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "vessel_core",
+    "vessel_sandbox",
+    "vessel_monitor",
+    "vessel_proxy",
+    "vessel_cli"
+]
+resolver = "2"
