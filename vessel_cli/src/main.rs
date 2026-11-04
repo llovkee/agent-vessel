@@ -5,7 +5,7 @@ mod demo;
 
 use std::sync::Arc;
 use vessel_core::state::{AgentState};
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use vessel_core::state::{Goal, StateChange};
 use vessel_monitor::WorkspaceMonitor;
 use vessel_sandbox::SandboxManager;
@@ -14,36 +14,46 @@ use vessel_proxy::ToolProxy;
 use crate::demo::DemoHackerAgent;
 use crate::evaluator::Evaluator;
 
+#[derive(ValueEnum, Clone, Debug, PartialEq)]
+enum Mode {
+    Ollama,
+    Demo,
+}
+
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Agent Vessel")]
 struct Args {
-    #[arg(long, default_value = "demo")]
-    mode: String, // "ollama" or "demo"
+    #[arg(long, value_enum, default_value_t = Mode::Ollama)]
+    mode: Mode,
 
     #[arg(short, long, default_value = "gemma4")]
     model: String, // ollama model
 
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "no goal")]
     goal: String,
 
     #[arg(short, long, help = "Define filesystem for agent. Will be deep-copied.")]
-    filesystem: String,
+    filesystem: Option<String>,
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
+
     let workspace = std::env::current_dir()?.join("workspace_tmp");
     let _ = std::fs::remove_dir_all(&workspace);
     std::fs::create_dir_all(&workspace)?;
-    let filesystem = std::fs::canonicalize(&args.filesystem)?;
-    let mut options = fs_extra::dir::CopyOptions::new();
-    options.copy_inside = true;
-    fs_extra::dir::copy(&filesystem, &workspace, &options)?;
+
+    if let Some(filesystem) = args.filesystem {
+        let fs = std::fs::canonicalize(filesystem)?;
+        let mut options = fs_extra::dir::CopyOptions::new();
+        options.copy_inside = true;
+        fs_extra::dir::copy(&fs, &workspace, &options)?;
+    }
 
     let goal = Goal {
         description: args.goal,
-        allowed_tools: vec!["write_file".into(), "execute_bash".into(), "finish".into()],
-        token_budget: 4096
+        allowed_tools: vec!["execute_bash".into(), "finish".into()],
+        token_budget: 4096,
     };
 
     let monitor = WorkspaceMonitor::new(&workspace);
@@ -58,19 +68,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         shared_sb.clone(),
     );
 
-    println!("Running {} agent", args.mode);
-    let final_state = match args.mode.as_str() {
-        "ollama" => {
+    println!("Running {:?} agent", args.mode);
+    let final_state = match args.mode {
+        Mode::Ollama => {
             let agent = ollama::OllamaAgent::new(&args.model);
             let engine = engine::ReactEngine::new(agent, proxy, 3);
             engine.run(&goal.description).await
         }
-        "demo" => {
+        Mode::Demo => {
             let agent = DemoHackerAgent { step: 0 };
             let engine = engine::ReactEngine::new(agent, proxy, 3);
             engine.run(&goal.description).await
         }
-        _ => panic!("Unsupported mode: {}", args.mode)
     };
 
     {

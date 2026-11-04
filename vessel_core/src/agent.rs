@@ -8,5 +8,5 @@ pub struct ActionIntent {
 }
 
 pub trait LlmAgent {
-    fn generate_action(&mut self, goal: &str, observation: &str) -> impl Future<Output = ActionIntent> + Send;
+    fn generate_action(&mut self, goal: &str, observation: &str) -> impl Future<Output = ActionIntent> + Send; // TODO: fn () -> Result<ActionIntent, error>
 }
