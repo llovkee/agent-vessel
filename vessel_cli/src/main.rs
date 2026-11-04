@@ -17,14 +17,17 @@ use crate::evaluator::Evaluator;
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Agent Vessel")]
 struct Args {
-    #[arg(short, long, default_value = "demo")]
+    #[arg(long, default_value = "demo")]
     mode: String, // "ollama" or "demo"
 
-    #[arg(long, default_value = "gemma4")]
+    #[arg(short, long, default_value = "gemma4")]
     model: String, // ollama model
 
-    #[arg(short, long, default_value = "create binary folder structure")]
+    #[arg(short, long)]
     goal: String,
+
+    #[arg(short, long, help = "Define filesystem for agent. Will be deep-copied.")]
+    filesystem: String,
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -32,6 +35,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let workspace = std::env::current_dir()?.join("workspace_tmp");
     let _ = std::fs::remove_dir_all(&workspace);
     std::fs::create_dir_all(&workspace)?;
+    let filesystem = std::fs::canonicalize(&args.filesystem)?;
+    let mut options = fs_extra::dir::CopyOptions::new();
+    options.copy_inside = true;
+    fs_extra::dir::copy(&filesystem, &workspace, &options)?;
 
     let goal = Goal {
         description: args.goal,

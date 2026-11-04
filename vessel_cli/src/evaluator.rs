@@ -35,7 +35,7 @@ impl Evaluator {
         }
 
         for changed_path in &actual_changes {
-            if changed_path.starts_with("/tests") {
+            if changed_path.starts_with("tests") {
                 return Ok(0f32); // Tests were overwritten
             }
         }
